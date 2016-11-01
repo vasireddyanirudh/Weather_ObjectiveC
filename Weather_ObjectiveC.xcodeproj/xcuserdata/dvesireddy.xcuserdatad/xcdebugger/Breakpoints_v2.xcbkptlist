@@ -27,11 +27,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Weather_ObjectiveC/WeatherViewController.m"
-            timestampString = "499699518.785745"
+            timestampString = "499702227.54903"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "296"
-            endingLineNumber = "296"
+            startingLineNumber = "294"
+            endingLineNumber = "294"
             landmarkName = "-timerFired"
             landmarkType = "7">
          </BreakpointContent>

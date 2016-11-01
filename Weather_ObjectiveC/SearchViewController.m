@@ -11,7 +11,7 @@
 #import <AddressBookUI/AddressBookUI.h>
 #import <Contacts/CNContact.h>
 #import <MapKit/MapKit.h>
-
+#import "NSArray+NSArray_extended.h"
 
 
 static NSString *API_KEY = @"a62177d994c36315743e0a2469572630";
@@ -33,6 +33,7 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     self.locArry = [NSMutableArray array];
     NSData  *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc1"];
     _savedLocation = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+    _savedLocation = [_savedLocation uniqueObjects]; 
     
 }
 

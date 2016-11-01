@@ -10,4 +10,10 @@
 
 @implementation NSArray (NSArray_extended)
 
+
+- (NSArray *)uniqueObjects
+{
+    return [[NSOrderedSet orderedSetWithArray:self] array];
+}
+
 @end

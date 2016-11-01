@@ -10,4 +10,6 @@
 
 @interface NSArray (NSArray_extended)
 
+- (NSArray *)uniqueObjects;
+
 @end
