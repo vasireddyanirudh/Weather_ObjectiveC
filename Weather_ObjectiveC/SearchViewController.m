@@ -31,7 +31,7 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     self.searchTableView.delegate = self;
 
     self.locArry = [NSMutableArray array];
-    NSData  *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc1"];
+    NSData  *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc2"];
     _savedLocation = [NSKeyedUnarchiver unarchiveObjectWithData:data];
     _savedLocation = [_savedLocation uniqueObjects]; 
     
@@ -119,7 +119,6 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
         else
             for (MKMapItem *item in response.mapItems)
             {
-//                if (item.placemark.locality != NULL && item.placemark.subAdministrativeArea != NULL && item.placemark.postalCode!= NULL) {
                 
                 NSString *cityName = item.placemark.locality;
                 NSString *zipcode  = item.placemark.postalCode;
@@ -127,7 +126,15 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
                 self.locationModel = [[LocationModel alloc] initwithcityName:cityName
                                                                    zipCode:zipcode
                                                             ISOCountryCode:ISOCode];
-            self.suggestions = [NSString stringWithFormat:@"%@,%@,%@",cityName,zipcode,ISOCode];
+                NSString *str;
+                if(cityName == NULL){
+                    str = [NSString stringWithFormat:@"%@,%@",zipcode,ISOCode];
+                }else if(zipcode == NULL){
+                    str = [NSString stringWithFormat:@"%@,%@",cityName,ISOCode];
+                }else{
+                    str = [NSString stringWithFormat:@"%@,%@,%@",cityName,zipcode,ISOCode];
+                }
+                self.suggestions = str;
             }
         dispatch_async(dispatch_get_main_queue(), ^{
             [self.searchTableView reloadData];
@@ -143,7 +150,7 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     NSData *savedEncodedLoc      = [NSData data];
     [_locArry addObject:self.suggestions];
     
-    NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc1"];
+    NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc2"];
     NSMutableArray *retrievedArry = [[NSKeyedUnarchiver unarchiveObjectWithData:data] mutableCopy];
     
     if (!retrievedArry || !retrievedArry.count) {
