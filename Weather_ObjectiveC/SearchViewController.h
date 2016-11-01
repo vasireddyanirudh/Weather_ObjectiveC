@@ -22,8 +22,8 @@
 //search controller
 @property (weak, nonatomic) IBOutlet UISearchBar *searchBar;
 @property (weak, nonatomic) IBOutlet UITableView *searchTableView;
-@property (copy, nonatomic)  NSString *suggestions;
-@property (strong, nonatomic)  NSMutableArray *locArry;
+@property (copy, nonatomic)          NSString *suggestions;
+@property (strong, nonatomic)        NSMutableArray *locArry;
 @property (weak, nonatomic) IBOutlet UILabel *searchResultsLabel;
 @property (weak, nonatomic) id<SelectedCityProtocol> delegate;
 

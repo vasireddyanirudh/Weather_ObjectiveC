@@ -30,11 +30,11 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     [super viewDidLoad];
     self.searchTableView.delegate = self;
 
-    self.locArry = [NSMutableArray array];
-    NSData  *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc2"];
-    _savedLocation = [NSKeyedUnarchiver unarchiveObjectWithData:data];
-    _savedLocation = [_savedLocation uniqueObjects]; 
-    
+    self.locArry       =  [NSMutableArray array];
+    NSString *path     = [self searchArchivePath];
+    self.savedLocation = [NSKeyedUnarchiver unarchiveObjectWithFile:path];
+    self.savedLocation = [self.savedLocation uniqueObjects];
+    [self.locArry addObjectsFromArray:self.savedLocation];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -86,18 +86,6 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     }
 }
 
-
-/*
-#pragma mark - Navigation
-
-// In a storyboard-based application, you will often want to do a little preparation before navigation
-- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
-    // Get the new view controller using [segue destinationViewController].
-    // Pass the selected object to the new view controller.
-}
-*/
-
-
 #pragma searchBar Delegate
 
 - (void)searchBar:(UISearchBar *)theSearchBar textDidChange:(NSString *)searchText {
@@ -118,8 +106,7 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
             NSLog(@"No Matches");
         else
             for (MKMapItem *item in response.mapItems)
-            {
-                
+            {                
                 NSString *cityName = item.placemark.locality;
                 NSString *zipcode  = item.placemark.postalCode;
                 NSString *ISOCode  = item.placemark.ISOcountryCode;
@@ -146,22 +133,20 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
 
 
 -(void)saveLocations{
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-    NSData *savedEncodedLoc      = [NSData data];
-    [_locArry addObject:self.suggestions];
     
-    NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:@"loc2"];
-    NSMutableArray *retrievedArry = [[NSKeyedUnarchiver unarchiveObjectWithData:data] mutableCopy];
+    [self.locArry addObject:self.suggestions];
+    NSString *path = [self searchArchivePath];
+    [NSKeyedArchiver archiveRootObject:self.locArry
+                                toFile:path];
+}
+
+- (NSString *)searchArchivePath {
+    NSArray *documentDirectories =
+    NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,
+                                        NSUserDomainMask, YES);
+    NSString *documentDirectory = [documentDirectories firstObject];
     
-    if (!retrievedArry || !retrievedArry.count) {
-        savedEncodedLoc = [NSKeyedArchiver archivedDataWithRootObject:_locArry];
-    }else{
-        
-        [retrievedArry addObject:self.suggestions];
-        savedEncodedLoc = [NSKeyedArchiver archivedDataWithRootObject:retrievedArry];
-    }
-    [userDefaults setObject:savedEncodedLoc forKey:@"loc1"];
-    [userDefaults synchronize];
+    return [documentDirectory stringByAppendingPathComponent:@"searchData.archive"];
 }
 
 @end

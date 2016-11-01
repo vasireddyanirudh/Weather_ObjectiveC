@@ -19,8 +19,8 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     CLLocation        *currentLocation;
     NSArray           *savedArray;
     //checks if data is being updates.
-    BOOL              *isReloading;
-    BOOL              *returnedAddress;
+    BOOL              isReloading;
+    BOOL              returnedAddress;
 
 }
 @property(nonatomic) BOOL *checkNetwork;
@@ -37,8 +37,6 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    _savedWeatherArray = [NSMutableArray array];
-    _addressArry       = [NSMutableArray array];
     
     [self retrieveDiskData];
     
@@ -63,11 +61,19 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
 
 -(void)retrieveDiskData{
     
-    NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:kWeatherModelKey];
-    _savedWeatherArray   = [NSKeyedUnarchiver unarchiveObjectWithData:data];
-    data = [[NSUserDefaults standardUserDefaults] objectForKey:kLocationKey];
-    _addressArry   =  [[NSKeyedUnarchiver unarchiveObjectWithData:data] mutableCopy];
-
+    NSString *weatherPath = [self weatherArchivePath];
+    NSString *locationPath = [self locationArchivePath];
+    
+    self.savedWeatherArray = [NSKeyedUnarchiver unarchiveObjectWithFile:weatherPath];
+    self.addressArry       = [NSKeyedUnarchiver unarchiveObjectWithFile:locationPath];
+    
+    if (!self.savedWeatherArray) {
+        self.savedWeatherArray = [NSMutableArray new];
+    }
+    
+    if (!self.addressArry) {
+        self.addressArry = [NSMutableArray new];
+    }
 }
 
 #pragma mark - Navigation
@@ -118,28 +124,20 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
         // Start data session
         NSURLSessionDataTask *task = [session dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
             if(data != nil){
-            _weatherModel = [[WeatherModel alloc] initWithDictionary:data];
-                //adding the weather model to array
-            [self.savedWeatherArray addObject:_weatherModel];
-                // saving the return weather model.
-            [self saveLocationsData:_weatherModel];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (!isReloading) {
+                        _weatherModel = [[WeatherModel alloc] initWithDictionary:data];
+                        //adding the weather model to array
+                        [self.savedWeatherArray addObject:_weatherModel];
+                        // saving the return weather model.
+                        [self saveLocationsData:_weatherModel];
+                    }
+                    [self.tableView reloadData];
+                });
                 
-                //TODO : check if this approach is working.
-                if (isReloading) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        NSArray *visibleRows = [self.tableView indexPathsForVisibleRows];
-                        [self.tableView reloadRowsAtIndexPaths:visibleRows withRowAnimation:UITableViewRowAnimationAutomatic];
-                    });
-                }else{
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self.tableView reloadData];
-                       
-                    });
-                }
-                    
             }else{
                 UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Cannot Retrieve Data" message:@"Please retry!" preferredStyle:UIAlertControllerStyleAlert];
-              
+                
                 [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
                     [self dismissViewControllerAnimated:YES completion:nil];
                 }]];
@@ -168,20 +166,17 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
         [locationManager requestWhenInUseAuthorization];
     [locationManager startUpdatingLocation];
    
-//    if ([CLLocationManager locationServicesEnabled]){
-//        if ([CLLocationManager authorizationStatus]==kCLAuthorizationStatusDenied){
-////            alert = [[UIAlertView alloc] initWithTitle:@"App Permission Denied"
-//                                               message:@"To re-enable, please go to Settings and turn on Location Service for this app."
-//                                              delegate:nil
-//                                     cancelButtonTitle:@"OK"
-//                                     otherButtonTitles:nil];
-//            [alert show];
-//        }else{
-//            
-//            [self currentLocationWeather];
-//            
-//        }
-//    }
+    if ([CLLocationManager locationServicesEnabled]){
+        if ([CLLocationManager authorizationStatus]==kCLAuthorizationStatusDenied){
+            
+                UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"App Permission Denied" message:@"please go to Settings and turn on Location Service for this app." preferredStyle:UIAlertControllerStyleAlert];
+                
+                [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                    [self dismissViewControllerAnimated:YES completion:nil];
+                }]];
+                [self presentViewController:alert animated:YES completion:nil];
+        }
+    }
 }
 
 - (void)locationManager:(CLLocationManager *)manager
@@ -197,7 +192,6 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
         NSString *cityName = placemark.locality;
         NSString *zipcode  = placemark.postalCode;
         NSString *ISOCode  = placemark.ISOcountryCode;
-        
         if(!returnedAddress){
         _locationModel = [[LocationModel alloc] initwithcityName:cityName
                                                          zipCode:zipcode
@@ -206,8 +200,6 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
         [self getLocationWeather:_locationModel];
             returnedAddress = YES;
         }
-        //TODO : check if reverse geo coding is working and remove below line
-        //[self saveAddressString:_locationModel];
     }];
 }
 
@@ -252,42 +244,34 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
 
 -(void)saveLocationsData:(WeatherModel *)location{
 
-    NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:kWeatherModelKey];
-    NSMutableArray *retrievedArry = [[NSKeyedUnarchiver unarchiveObjectWithData:data] mutableCopy];
-
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-    NSData *savedEncodedLoc      = [NSData data];
-    
-    if (!retrievedArry || !retrievedArry.count) {
-        NSMutableArray *temparry = [NSMutableArray arrayWithObject:location];
-        savedEncodedLoc = [NSKeyedArchiver archivedDataWithRootObject:temparry];
-    }else{
-        
-        [retrievedArry addObject:location];
-        savedEncodedLoc = [NSKeyedArchiver archivedDataWithRootObject:retrievedArry];
-    }
-    [userDefaults setObject:savedEncodedLoc forKey:kWeatherModelKey];
-    [userDefaults synchronize];
+    NSString *path = [self weatherArchivePath];
+    [NSKeyedArchiver archiveRootObject:self.savedWeatherArray
+                                toFile:path];
 }
 
 -(void)saveAddressString:(LocationModel*)destination{
+
+    NSString *path = [self locationArchivePath];
+    [NSKeyedArchiver archiveRootObject:self.addressArry
+                                toFile:path];
+}
+
+- (NSString *)weatherArchivePath {
+    NSArray *documentDirectories =
+    NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,
+                                        NSUserDomainMask, YES);
+    NSString *documentDirectory = [documentDirectories firstObject];
     
-    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-    NSData *savedUrlData         = [NSData data];
+    return [documentDirectory stringByAppendingPathComponent:@"weatherData.archive"];
+}
+
+- (NSString *)locationArchivePath {
+    NSArray *documentDirectories =
+    NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,
+                                        NSUserDomainMask, YES);
+    NSString *documentDirectory = [documentDirectories firstObject];
     
-    //checking for previously saved array.
-    NSData *data = [[NSUserDefaults standardUserDefaults] objectForKey:kLocationKey];
-    NSMutableArray *retrievedArry = [[NSKeyedUnarchiver unarchiveObjectWithData:data] mutableCopy];
-    
-    if (!retrievedArry || !retrievedArry.count) {
-        NSMutableArray *temparry = [NSMutableArray arrayWithObject:destination];
-        savedUrlData = [NSKeyedArchiver archivedDataWithRootObject:temparry];
-    }else{
-        [retrievedArry addObject:destination];
-        savedUrlData = [NSKeyedArchiver archivedDataWithRootObject:retrievedArry];
-    }
-    [userDefaults setObject:savedUrlData forKey:kLocationKey];
-    [userDefaults synchronize];
+    return [documentDirectory stringByAppendingPathComponent:@"locationData.archive"];
 }
 
 -(void)timerFired{
@@ -298,20 +282,6 @@ static NSString *BASE_URL = @"http://api.openweathermap.org/data/2.5/weather";
     for (LocationModel  *location in _addressArry) {
         [self getLocationWeather:location];
     }
-    
-//    //TODO : approach 2 . go home and check.
-//    for (LocationModel  *location in _addressArry) {
-//        NSString *urlString;
-//        if(location.cityName != nil){
-//            urlString = [NSString stringWithFormat:@"%@?q=%@,%@&APPID=%@",BASE_URL,location.cityName,location.ISOCode,API_KEY];
-//        }else if(location.zipcode != nil){
-//            urlString = [NSString stringWithFormat:@"%@?zip=%@,%@&APPID=%@",BASE_URL,location.zipcode,location.ISOCode,API_KEY];
-//        }
-//        urlString = [urlString stringByReplacingOccurrencesOfString:@" " withString:@""];
-//        NSURL *destinationURL = [NSURL URLWithString:urlString];
-//        // save location address in disk.
-//        [self reloadService:destinationURL];
-//    }
 }
 
 -(void)reloadService:(NSURL *)destinationUrl{
